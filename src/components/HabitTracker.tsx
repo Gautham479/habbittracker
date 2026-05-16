@@ -2,10 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+declare global {
+  interface Window {
+    storage?: {
+      get: (key: string) => Promise<{ value: string } | null>;
+      set: (key: string, value: string) => Promise<void>;
+    };
+  }
+}
+
+interface Habit {
+  id: number;
+  name: string;
+}
+
+interface Completions {
+  [key: string]: boolean;
+}
+
 export default function HabitTracker() {
-  const [habits, setHabits] = useState([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [newHabit, setNewHabit] = useState('');
-  const [completions, setCompletions] = useState({});
+  const [completions, setCompletions] = useState<Completions>({});
   const [view, setView] = useState('calendar');
   const [showYearly, setShowYearly] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -17,17 +35,17 @@ export default function HabitTracker() {
         const habitsData = await window.storage?.get('habits');
         const completionsData = await window.storage?.get('completions');
         const darkModeData = await window.storage?.get('darkMode');
-        if (habitsData) setHabits(JSON.parse(habitsData.value));
-        if (completionsData) setCompletions(JSON.parse(completionsData.value));
-        if (darkModeData) setDarkMode(JSON.parse(darkModeData.value));
-      } catch (e) {
+        if (habitsData && habitsData.value) setHabits(JSON.parse(habitsData.value));
+        if (completionsData && completionsData.value) setCompletions(JSON.parse(completionsData.value));
+        if (darkModeData && darkModeData.value) setDarkMode(JSON.parse(darkModeData.value));
+      } catch {
         console.log('No saved data');
       }
     };
     loadData();
   }, []);
 
-  const saveData = async (newHabits, newCompletions) => {
+  const saveData = async (newHabits: Habit[], newCompletions: Completions) => {
     try {
       if (window.storage) {
         await window.storage.set('habits', JSON.stringify(newHabits));
@@ -58,9 +76,9 @@ export default function HabitTracker() {
     saveData(updated, completions);
   };
 
-  const deleteHabit = (id) => {
+  const deleteHabit = (id: number) => {
     const updated = habits.filter(h => h.id !== id);
-    const newCompletions = { ...completions };
+    const newCompletions: Completions = { ...completions };
     Object.keys(newCompletions).forEach(key => {
       if (key.startsWith(`${id}-`)) delete newCompletions[key];
     });
@@ -69,9 +87,9 @@ export default function HabitTracker() {
     saveData(updated, newCompletions);
   };
 
-  const toggleCompletion = (habitId, date) => {
+  const toggleCompletion = (habitId: number, date: string) => {
     const key = `${habitId}-${date}`;
-    const updated = { ...completions };
+    const updated: Completions = { ...completions };
     if (updated[key]) {
       delete updated[key];
     } else {
@@ -81,9 +99,9 @@ export default function HabitTracker() {
     saveData(habits, updated);
   };
 
-  const getDateString = (date) => date.toISOString().split('T')[0];
+  const getDateString = (date: Date) => date.toISOString().split('T')[0];
 
-  const getHabitStats = (habitId, targetDate = currentDate) => {
+  const getHabitStats = (habitId: number, targetDate = currentDate) => {
     const year = targetDate.getFullYear();
     const month = targetDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -156,7 +174,7 @@ export default function HabitTracker() {
     for (let m = 0; m < 12; m++) {
       const daysInMonth = new Date(year, m + 1, 0).getDate();
       let monthCount = 0;
-      let possibleCount = habits.length * daysInMonth;
+      const possibleCount = habits.length * daysInMonth;
       
       for (let i = 1; i <= daysInMonth; i++) {
         const date = new Date(year, m, i);
@@ -173,7 +191,7 @@ export default function HabitTracker() {
     return data;
   };
 
-  const getChartData = (habitId) => {
+  const getChartData = (habitId: number) => {
     const data = [];
     const today = new Date();
     
@@ -208,7 +226,7 @@ export default function HabitTracker() {
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
     
-    let totalPossible = habits.length * 7;
+    const totalPossible = habits.length * 7;
     let completedThisWeek = 0;
     
     for (let i = 0; i < 7; i++) {
