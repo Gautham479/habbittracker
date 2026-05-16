@@ -1,15 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-declare global {
-  interface Window {
-    storage?: {
-      get: (key: string) => Promise<{ value: string } | null>;
-      set: (key: string, value: string) => Promise<void>;
-    };
-  }
-}
 
 interface Habit {
   id: number;
@@ -287,7 +278,7 @@ export default function HabitTracker() {
         {months.map((month, idx) => {
           const daysInMonth = new Date(year, month.getMonth() + 1, 0).getDate();
           const firstDay = new Date(year, month.getMonth(), 1).getDay();
-          const days = [];
+          const days: (Date | null)[] = [];
 
           for (let i = 0; i < firstDay; i++) days.push(null);
           for (let i = 1; i <= daysInMonth; i++) {
@@ -344,7 +335,7 @@ export default function HabitTracker() {
   };
 
   const renderWeekView = () => {
-    const days = [];
+    const days: Date[] = [];
     const startDate = new Date(currentDate);
     startDate.setDate(currentDate.getDate() - currentDate.getDay());
 
