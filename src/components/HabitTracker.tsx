@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
 
 interface Habit {
   id: number;
@@ -11,7 +13,7 @@ interface Completions {
   [key: string]: boolean;
 }
 
-export default function HabitTracker() {
+export default function HabitTracker({ session }: { session: Session }) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [newHabit, setNewHabit] = useState('');
   const [completions, setCompletions] = useState<Completions>({});
@@ -23,25 +25,32 @@ export default function HabitTracker() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const habitsData = await window.storage?.get('habits');
-        const completionsData = await window.storage?.get('completions');
-        const darkModeData = await window.storage?.get('darkMode');
-        if (habitsData && habitsData.value) setHabits(JSON.parse(habitsData.value));
-        if (completionsData && completionsData.value) setCompletions(JSON.parse(completionsData.value));
-        if (darkModeData && darkModeData.value) setDarkMode(JSON.parse(darkModeData.value));
+        const { data, error } = await supabase
+          .from('user_data')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (data) {
+          if (data.habits) setHabits(data.habits);
+          if (data.completions) setCompletions(data.completions);
+          if (data.dark_mode !== undefined) setDarkMode(data.dark_mode);
+        }
       } catch {
         console.log('No saved data');
       }
     };
     loadData();
-  }, []);
+  }, [session.user.id]);
 
-  const saveData = async (newHabits: Habit[], newCompletions: Completions) => {
+  const saveData = async (newHabits: Habit[], newCompletions: Completions, newDarkMode = darkMode) => {
     try {
-      if (window.storage) {
-        await window.storage.set('habits', JSON.stringify(newHabits));
-        await window.storage.set('completions', JSON.stringify(newCompletions));
-      }
+      await supabase.from('user_data').upsert({
+        user_id: session.user.id,
+        habits: newHabits,
+        completions: newCompletions,
+        dark_mode: newDarkMode
+      });
     } catch (e) {
       console.error('Save failed:', e);
     }
@@ -50,12 +59,22 @@ export default function HabitTracker() {
   const toggleDarkMode = async () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
-    try {
-      if (window.storage) {
-        await window.storage.set('darkMode', JSON.stringify(newMode));
+    saveData(habits, completions, newMode);
+  };
+
+  const handleChangePassword = async () => {
+    const newPassword = prompt("Enter your new password (minimum 6 characters):");
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        alert("Password must be at least 6 characters long.");
+        return;
       }
-    } catch (e) {
-      console.error('Save failed:', e);
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        alert("Error changing password: " + error.message);
+      } else {
+        alert("Password successfully updated!");
+      }
     }
   };
 
@@ -416,9 +435,17 @@ export default function HabitTracker() {
             <h1 className={`text-4xl md:text-6xl font-black uppercase tracking-tighter ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Dominate<br />Your Habits</h1>
             <p className={`text-sm md:text-base font-bold uppercase tracking-widest mt-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>No Excuses. Track Progress.</p>
           </div>
-          <button onClick={toggleDarkMode} className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-100 hover:border-zinc-500' : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-400'} shadow-sm`}>
-            {darkMode ? <Sun size={24} /> : <Moon size={24} />}
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={toggleDarkMode} title="Toggle Dark Mode" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-100 hover:border-zinc-500' : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-400'} shadow-sm`}>
+              {darkMode ? <Sun size={24} /> : <Moon size={24} />}
+            </button>
+            <button onClick={handleChangePassword} title="Change Password" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-blue-400 hover:border-blue-500 hover:text-blue-500' : 'bg-white border-zinc-200 text-blue-500 hover:border-blue-500'} shadow-sm`}>
+              <Key size={24} />
+            </button>
+            <button onClick={() => supabase.auth.signOut()} title="Logout" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-red-400 hover:border-red-500 hover:text-red-500' : 'bg-white border-zinc-200 text-red-500 hover:border-red-500'} shadow-sm`}>
+              <LogOut size={24} />
+            </button>
+          </div>
         </header>
 
         <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-2xl shadow-sm p-4 mb-8`}>
