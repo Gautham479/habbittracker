@@ -26,7 +26,7 @@ export default function HabitTracker({ session }: { session: Session }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('user_data')
           .select('*')
           .eq('user_id', session.user.id)
