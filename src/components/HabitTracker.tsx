@@ -105,14 +105,14 @@ export default function HabitTracker() {
     const year = targetDate.getFullYear();
     const month = targetDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     let habitCompletions = 0;
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month, i);
       const key = `${habitId}-${getDateString(date)}`;
       if (completions[key]) habitCompletions++;
     }
-    
+
     const percentage = Math.round((habitCompletions / daysInMonth) * 100);
 
     let streak = 0;
@@ -134,7 +134,7 @@ export default function HabitTracker() {
   const getWeeklyStats = () => {
     const data = [];
     const today = new Date();
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
@@ -145,7 +145,7 @@ export default function HabitTracker() {
       });
       data.push({ date: dateStr.slice(-5), completed: count });
     }
-    
+
     return data;
   };
 
@@ -154,7 +154,7 @@ export default function HabitTracker() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month, i);
       const dateStr = getDateString(date);
@@ -170,12 +170,12 @@ export default function HabitTracker() {
   const getYearlyStatsData = () => {
     const data = [];
     const year = currentDate.getFullYear();
-    
+
     for (let m = 0; m < 12; m++) {
       const daysInMonth = new Date(year, m + 1, 0).getDate();
       let monthCount = 0;
       const possibleCount = habits.length * daysInMonth;
-      
+
       for (let i = 1; i <= daysInMonth; i++) {
         const date = new Date(year, m, i);
         const dateStr = getDateString(date);
@@ -183,7 +183,7 @@ export default function HabitTracker() {
           if (completions[`${h.id}-${dateStr}`]) monthCount++;
         });
       }
-      
+
       const percentage = possibleCount === 0 ? 0 : Math.round((monthCount / possibleCount) * 100);
       const monthName = new Date(year, m, 1).toLocaleDateString('en-US', { month: 'short' });
       data.push({ month: monthName, completion: percentage });
@@ -194,7 +194,7 @@ export default function HabitTracker() {
   const getChartData = (habitId: number) => {
     const data = [];
     const today = new Date();
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
@@ -202,7 +202,7 @@ export default function HabitTracker() {
       const completed = completions[`${habitId}-${dateStr}`] ? 1 : 0;
       data.push({ date: dateStr.slice(-5), completed });
     }
-    
+
     return data;
   };
 
@@ -225,10 +225,10 @@ export default function HabitTracker() {
     startDate.setDate(currentDate.getDate() - currentDate.getDay());
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
-    
+
     const totalPossible = habits.length * 7;
     let completedThisWeek = 0;
-    
+
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -237,7 +237,7 @@ export default function HabitTracker() {
         if (completions[`${h.id}-${dateStr}`]) completedThisWeek++;
       });
     }
-    
+
     const progress = totalPossible === 0 ? 0 : Math.round((completedThisWeek / totalPossible) * 100);
 
     return (
@@ -246,8 +246,8 @@ export default function HabitTracker() {
           <div>
             <p className="text-sm font-bold mb-1 uppercase tracking-wider text-zinc-400">{showYearly ? 'Year Overview' : 'Week of'}</p>
             <h2 className="text-3xl font-black tracking-tight">
-              {showYearly 
-                ? currentDate.getFullYear() 
+              {showYearly
+                ? currentDate.getFullYear()
                 : `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
               }
             </h2>
@@ -288,7 +288,7 @@ export default function HabitTracker() {
           const daysInMonth = new Date(year, month.getMonth() + 1, 0).getDate();
           const firstDay = new Date(year, month.getMonth(), 1).getDay();
           const days = [];
-          
+
           for (let i = 0; i < firstDay; i++) days.push(null);
           for (let i = 1; i <= daysInMonth; i++) {
             days.push(new Date(year, month.getMonth(), i));
@@ -311,7 +311,7 @@ export default function HabitTracker() {
                     if (completions[`${h.id}-${dateStr}`]) completedCount++;
                   });
                   const intensity = habits.length > 0 ? completedCount / habits.length : 0;
-                  
+
                   const isToday = getDateString(new Date()) === dateStr;
                   const isSelected = getDateString(currentDate) === dateStr;
 
@@ -322,15 +322,14 @@ export default function HabitTracker() {
                         setCurrentDate(date);
                         setShowYearly(false);
                       }}
-                      className={`cursor-pointer h-6 rounded text-[10px] font-bold flex items-center justify-center transition-colors hover:scale-110 ${
-                        intensity === 0
-                          ? darkMode ? 'bg-zinc-800 text-zinc-600' : 'bg-zinc-100 text-zinc-400'
-                          : intensity < 0.5
+                      className={`cursor-pointer h-6 rounded text-[10px] font-bold flex items-center justify-center transition-colors hover:scale-110 ${intensity === 0
+                        ? darkMode ? 'bg-zinc-800 text-zinc-600' : 'bg-zinc-100 text-zinc-400'
+                        : intensity < 0.5
                           ? darkMode ? 'bg-zinc-700 text-zinc-300' : 'bg-zinc-300 text-zinc-700'
                           : intensity < 1
-                          ? darkMode ? 'bg-zinc-500 text-white' : 'bg-zinc-500 text-white'
-                          : darkMode ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-900 text-white'
-                      } ${isSelected ? (darkMode ? 'ring-2 ring-white' : 'ring-2 ring-black') : isToday ? (darkMode ? 'ring-1 ring-zinc-500' : 'ring-1 ring-zinc-400') : ''}`}
+                            ? darkMode ? 'bg-zinc-500 text-white' : 'bg-zinc-500 text-white'
+                            : darkMode ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-900 text-white'
+                        } ${isSelected ? (darkMode ? 'ring-2 ring-white' : 'ring-2 ring-black') : isToday ? (darkMode ? 'ring-1 ring-zinc-500' : 'ring-1 ring-zinc-400') : ''}`}
                     >
                       {date.getDate()}
                     </div>
@@ -348,7 +347,7 @@ export default function HabitTracker() {
     const days = [];
     const startDate = new Date(currentDate);
     startDate.setDate(currentDate.getDate() - currentDate.getDay());
-    
+
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -358,7 +357,7 @@ export default function HabitTracker() {
     return (
       <div className="space-y-4">
         {renderCalendarHeader()}
-        
+
         {showYearly ? renderYearGrid() : (
           <>
             <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl p-4 shadow-sm`}>
@@ -388,16 +387,15 @@ export default function HabitTracker() {
                     const dateStr = getDateString(day);
                     const isCompleted = completions[`${habit.id}-${dateStr}`];
                     const isToday = getDateString(new Date()) === dateStr;
-                    
+
                     return (
                       <button
                         key={idx}
                         onClick={() => toggleCompletion(habit.id, dateStr)}
-                        className={`h-10 rounded-lg text-sm font-black transition-all transform active:scale-95 ${
-                          isCompleted
-                            ? darkMode ? 'bg-zinc-100 text-zinc-900 shadow-md' : 'bg-zinc-900 text-white shadow-md'
-                            : darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-500' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-400'
-                        } ${isToday && !isCompleted ? (darkMode ? 'ring-2 ring-zinc-500' : 'ring-2 ring-zinc-300') : ''}`}
+                        className={`h-10 rounded-lg text-sm font-black transition-all transform active:scale-95 ${isCompleted
+                          ? darkMode ? 'bg-zinc-100 text-zinc-900 shadow-md' : 'bg-zinc-900 text-white shadow-md'
+                          : darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-500' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-400'
+                          } ${isToday && !isCompleted ? (darkMode ? 'ring-2 ring-zinc-500' : 'ring-2 ring-zinc-300') : ''}`}
                       >
                         {isCompleted ? '✓' : ''}
                       </button>
@@ -416,7 +414,7 @@ export default function HabitTracker() {
   const weeklyData = getWeeklyStats();
   const monthlyData = getMonthlyStats();
   const yearlyData = getYearlyStatsData();
-  
+
   const chartColor = darkMode ? '#f4f4f5' : '#18181b';
 
   return (
@@ -424,7 +422,7 @@ export default function HabitTracker() {
       <div className="max-w-5xl mx-auto p-4 md:p-8">
         <header className="flex items-center justify-between mb-10 mt-4">
           <div>
-            <h1 className={`text-4xl md:text-6xl font-black uppercase tracking-tighter ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Dominate<br/>Your Habits</h1>
+            <h1 className={`text-4xl md:text-6xl font-black uppercase tracking-tighter ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Dominate<br />Your Habits</h1>
             <p className={`text-sm md:text-base font-bold uppercase tracking-widest mt-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>No Excuses. Track Progress.</p>
           </div>
           <button onClick={toggleDarkMode} className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-100 hover:border-zinc-500' : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-400'} shadow-sm`}>
@@ -440,13 +438,11 @@ export default function HabitTracker() {
               onChange={(e) => setNewHabit(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addHabit()}
               placeholder="NEW HABIT..."
-              className={`flex-1 px-4 py-3 text-sm font-bold uppercase tracking-wider border-2 rounded-xl focus:outline-none transition-all ${
-                darkMode ? 'bg-zinc-800 border-zinc-700 text-white focus:border-zinc-500 placeholder-zinc-500' : 'bg-zinc-50 border-zinc-200 focus:border-zinc-900 placeholder-zinc-400'
-              }`}
+              className={`flex-1 px-4 py-3 text-sm font-bold uppercase tracking-wider border-2 rounded-xl focus:outline-none transition-all ${darkMode ? 'bg-zinc-800 border-zinc-700 text-white focus:border-zinc-500 placeholder-zinc-500' : 'bg-zinc-50 border-zinc-200 focus:border-zinc-900 placeholder-zinc-400'
+                }`}
             />
-            <button onClick={addHabit} className={`px-6 py-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 text-sm font-black uppercase tracking-wider ${
-              darkMode ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-900 text-white hover:bg-black'
-            }`}>
+            <button onClick={addHabit} className={`px-6 py-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 text-sm font-black uppercase tracking-wider ${darkMode ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-900 text-white hover:bg-black'
+              }`}>
               <Plus size={18} strokeWidth={3} /> Add
             </button>
           </div>
@@ -462,21 +458,19 @@ export default function HabitTracker() {
             <div className="flex gap-3 mb-6">
               <button
                 onClick={() => setView('calendar')}
-                className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
-                  view === 'calendar'
-                    ? (darkMode ? 'bg-white text-black' : 'bg-zinc-900 text-white')
-                    : (darkMode ? 'bg-zinc-900 text-zinc-400 border-2 border-transparent hover:border-zinc-700' : 'bg-white text-zinc-500 border-2 border-transparent hover:border-zinc-300 shadow-sm')
-                }`}
+                className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${view === 'calendar'
+                  ? (darkMode ? 'bg-white text-black' : 'bg-zinc-900 text-white')
+                  : (darkMode ? 'bg-zinc-900 text-zinc-400 border-2 border-transparent hover:border-zinc-700' : 'bg-white text-zinc-500 border-2 border-transparent hover:border-zinc-300 shadow-sm')
+                  }`}
               >
                 <Calendar size={16} strokeWidth={3} /> Calendar
               </button>
               <button
                 onClick={() => setView('analytics')}
-                className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
-                  view === 'analytics'
-                    ? (darkMode ? 'bg-white text-black' : 'bg-zinc-900 text-white')
-                    : (darkMode ? 'bg-zinc-900 text-zinc-400 border-2 border-transparent hover:border-zinc-700' : 'bg-white text-zinc-500 border-2 border-transparent hover:border-zinc-300 shadow-sm')
-                }`}
+                className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${view === 'analytics'
+                  ? (darkMode ? 'bg-white text-black' : 'bg-zinc-900 text-white')
+                  : (darkMode ? 'bg-zinc-900 text-zinc-400 border-2 border-transparent hover:border-zinc-700' : 'bg-white text-zinc-500 border-2 border-transparent hover:border-zinc-300 shadow-sm')
+                  }`}
               >
                 <BarChart3 size={16} strokeWidth={3} /> Analytics
               </button>
@@ -509,9 +503,9 @@ export default function HabitTracker() {
                       <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
                       <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
                       <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip 
-                        cursor={{fill: darkMode ? '#27272a' : '#f4f4f5'}}
-                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }} 
+                      <Tooltip
+                        cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
+                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
                       />
                       <Bar dataKey="completed" fill={chartColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
                     </BarChart>
@@ -525,9 +519,9 @@ export default function HabitTracker() {
                       <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
                       <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
                       <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip 
-                        cursor={{fill: darkMode ? '#27272a' : '#f4f4f5'}}
-                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }} 
+                      <Tooltip
+                        cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
+                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
                       />
                       <Bar dataKey="completed" fill={chartColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
                     </BarChart>
@@ -541,9 +535,9 @@ export default function HabitTracker() {
                       <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
                       <XAxis dataKey="month" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
                       <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip 
-                        cursor={{fill: darkMode ? '#27272a' : '#f4f4f5'}}
-                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }} 
+                      <Tooltip
+                        cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
+                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
                       />
                       <Bar dataKey="completion" fill={chartColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
                     </BarChart>
@@ -563,8 +557,8 @@ export default function HabitTracker() {
                         <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
                         <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
                         <YAxis domain={[0, 1]} stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} ticks={[0, 1]} tickFormatter={(val) => val === 1 ? 'YES' : 'NO'} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }} 
+                        <Tooltip
+                          contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
                         />
                         <Line type="stepAfter" dataKey="completed" stroke={chartColor} strokeWidth={3} dot={{ fill: chartColor, r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
                       </LineChart>
