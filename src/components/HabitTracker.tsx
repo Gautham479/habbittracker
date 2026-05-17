@@ -1,7 +1,7 @@
 // Trigger Vercel deployment
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key, GripVertical } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 
@@ -216,62 +216,6 @@ export default function HabitTracker({ session }: { session: Session }) {
     return data;
   };
 
-  const getMonthlyStats = () => {
-    const data = [];
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(year, month, i);
-      const dateStr = getDateString(date);
-      let count = 0;
-      habits.forEach(h => {
-        if (completions[`${h.id}-${dateStr}`]) count++;
-      });
-      data.push({ date: i.toString(), completed: count });
-    }
-    return data;
-  };
-
-  const getYearlyStatsData = () => {
-    const data = [];
-    const year = currentDate.getFullYear();
-
-    for (let m = 0; m < 12; m++) {
-      const daysInMonth = new Date(year, m + 1, 0).getDate();
-      let monthCount = 0;
-      const possibleCount = habits.length * daysInMonth;
-
-      for (let i = 1; i <= daysInMonth; i++) {
-        const date = new Date(year, m, i);
-        const dateStr = getDateString(date);
-        habits.forEach(h => {
-          if (completions[`${h.id}-${dateStr}`]) monthCount++;
-        });
-      }
-
-      const percentage = possibleCount === 0 ? 0 : Math.round((monthCount / possibleCount) * 100);
-      const monthName = new Date(year, m, 1).toLocaleDateString('en-US', { month: 'short' });
-      data.push({ month: monthName, completion: percentage });
-    }
-    return data;
-  };
-
-  const getChartData = (habitId: number) => {
-    const data = [];
-    const today = new Date();
-
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = getDateString(date);
-      const completed = completions[`${habitId}-${dateStr}`] ? 1 : 0;
-      data.push({ date: dateStr.slice(-5), completed });
-    }
-
-    return data;
-  };
 
   const nextPeriod = () => {
     const next = new Date(currentDate);
