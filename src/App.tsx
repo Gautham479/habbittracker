@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import HabitTracker from './components/HabitTracker';
+import { Eye, EyeOff } from 'lucide-react';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -55,11 +57,15 @@ function App() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4 selection:bg-zinc-500 selection:text-white font-sans">
-        <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+      <div 
+        className="min-h-screen bg-black flex items-center justify-center p-4 selection:bg-zinc-500 selection:text-white font-sans bg-cover bg-center relative"
+        style={{ backgroundImage: 'url("/24f8c414e74bd3cf61f0722a12f258ac (1).jpg")' }}
+      >
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-0"></div>
+        <div className="bg-zinc-900/80 backdrop-blur-md border border-zinc-700/50 p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-black uppercase tracking-tighter text-white mb-2">{isSignUp ? 'Register' : 'Access'}</h1>
-            <p className="text-sm font-bold uppercase tracking-widest text-zinc-500">Secure Protocol</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-emerald-400">Track your habits like a pro</p>
           </div>
           
           <form onSubmit={handleAuth} className="space-y-6">
@@ -76,14 +82,23 @@ function App() {
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold"
-                placeholder="••••••••••••"
-                required
-              />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold pr-12"
+                  placeholder="••••••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
             
             {error && <p className={`text-xs font-bold tracking-wider text-center ${error.includes('Success') ? 'text-green-500' : 'text-red-500 uppercase'}`}>{error}</p>}

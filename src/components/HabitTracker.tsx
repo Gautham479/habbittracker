@@ -1,6 +1,6 @@
 // Trigger Vercel deployment
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key, GripVertical, Pencil, Check, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
@@ -26,6 +26,8 @@ export default function HabitTracker({ session }: { session: Session }) {
   const [dragOverHabitId, setDragOverHabitId] = useState<number | null>(null);
   const [currentInsightIdx, setCurrentInsightIdx] = useState(0);
   const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
+  const [editingHabitId, setEditingHabitId] = useState<number | null>(null);
+  const [editingHabitName, setEditingHabitName] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -81,6 +83,27 @@ export default function HabitTracker({ session }: { session: Session }) {
         alert("Password successfully updated!");
       }
     }
+  };
+
+  const startEditing = (habit: Habit) => {
+    setEditingHabitId(habit.id);
+    setEditingHabitName(habit.name);
+  };
+
+  const saveEdit = (id: number) => {
+    if (!editingHabitName.trim()) {
+      setEditingHabitId(null);
+      return;
+    }
+    const updated = habits.map(h => h.id === id ? { ...h, name: editingHabitName.toUpperCase() } : h);
+    setHabits(updated);
+    saveData(updated, completions);
+    setEditingHabitId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingHabitId(null);
+    setEditingHabitName('');
   };
 
   const addHabit = () => {
@@ -401,12 +424,39 @@ export default function HabitTracker({ session }: { session: Session }) {
                     <div className="cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 p-1 -ml-1">
                       <GripVertical size={20} />
                     </div>
-                    <span className={`text-lg font-black tracking-tight uppercase ${darkMode ? 'text-zinc-100' : 'text-zinc-900'}`}>{habit.name}</span>
+                    {editingHabitId === habit.id ? (
+                      <input
+                        type="text"
+                        value={editingHabitName}
+                        onChange={(e) => setEditingHabitName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && saveEdit(habit.id)}
+                        autoFocus
+                        className={`text-lg font-black tracking-tight uppercase bg-transparent border-b-2 outline-none w-32 sm:w-48 ${darkMode ? 'text-zinc-100 border-zinc-500' : 'text-zinc-900 border-zinc-400'}`}
+                      />
+                    ) : (
+                      <span className={`text-lg font-black tracking-tight uppercase ${darkMode ? 'text-zinc-100' : 'text-zinc-900'}`}>{habit.name}</span>
+                    )}
                     <span className={`text-[10px] w-fit font-bold px-2 py-1 rounded-md uppercase tracking-widest ${darkMode ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}>🔥 {getHabitStats(habit.id).streak} Day Streak</span>
                   </div>
-                  <button onClick={() => deleteHabit(habit.id)} className={`${darkMode ? 'text-zinc-600 hover:text-red-500' : 'text-zinc-400 hover:text-red-500'} transition`}>
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {editingHabitId === habit.id ? (
+                      <>
+                        <button onClick={() => saveEdit(habit.id)} className={`${darkMode ? 'text-zinc-400 hover:text-emerald-500' : 'text-zinc-400 hover:text-emerald-500'} transition`}>
+                          <Check size={18} />
+                        </button>
+                        <button onClick={cancelEdit} className={`${darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-400 hover:text-zinc-600'} transition`}>
+                          <X size={18} />
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => startEditing(habit)} className={`${darkMode ? 'text-zinc-600 hover:text-blue-500' : 'text-zinc-400 hover:text-blue-500'} transition`}>
+                        <Pencil size={18} />
+                      </button>
+                    )}
+                    <button onClick={() => deleteHabit(habit.id)} className={`${darkMode ? 'text-zinc-600 hover:text-red-500' : 'text-zinc-400 hover:text-red-500'} transition`}>
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-7 gap-2">
                   {days.map((day, idx) => {
