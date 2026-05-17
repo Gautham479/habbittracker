@@ -617,14 +617,70 @@ export default function HabitTracker({ session }: { session: Session }) {
   const chartColor = darkMode ? '#f4f4f5' : '#18181b';
 
   return (
-    <div className={`min-h-screen font-sans ${darkMode ? 'bg-black text-white' : 'bg-zinc-50 text-black'} transition-colors duration-300 selection:bg-zinc-500 selection:text-white`}>
-      <div className="max-w-5xl mx-auto p-4 md:p-8">
-        <header className="flex items-center justify-between mb-10 mt-4">
-          <div>
+    <div className={`min-h-screen font-sans ${darkMode ? 'bg-black text-white' : 'bg-zinc-50 text-black'} transition-colors duration-300 selection:bg-zinc-500 selection:text-white relative overflow-hidden`}>
+      
+      {/* Left fixed background character */}
+      {darkMode && (
+        <div 
+          className="fixed left-[-10%] md:left-0 top-[30%] bottom-0 w-[280px] md:w-[450px] pointer-events-none z-0 opacity-25 md:opacity-40 transition-opacity duration-500 select-none flex items-start"
+        >
+           <img 
+             src="/left-image.jpg" 
+             alt="Left Background Character" 
+             className="w-full h-auto object-contain transition-all duration-700 mix-blend-screen" 
+             style={{ 
+               filter: 'contrast(3) brightness(0.85) grayscale(1)',
+               maskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, black 80%, transparent 100%)',
+               WebkitMaskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, black 80%, transparent 100%)'
+             }}
+           />
+        </div>
+      )}
+
+      {/* Right fixed background character */}
+      {darkMode && (
+        <div 
+          className="fixed right-[-10%] md:right-0 top-[30%] bottom-0 w-[280px] md:w-[450px] pointer-events-none z-0 opacity-25 md:opacity-40 transition-opacity duration-500 select-none flex items-start"
+        >
+           <img 
+             src="/right-image.jpg" 
+             alt="Right Background Character" 
+             className="w-full h-auto object-contain transition-all duration-700 mix-blend-screen" 
+             style={{ 
+               filter: 'contrast(3) brightness(0.85) grayscale(1)',
+               maskImage: 'radial-gradient(ellipse 50% 60% at 50% 40%, black 10%, transparent 75%)',
+               WebkitMaskImage: 'radial-gradient(ellipse 50% 60% at 50% 40%, black 10%, transparent 75%)'
+             }}
+           />
+        </div>
+      )}
+
+      <div className="max-w-5xl mx-auto p-4 md:p-8 relative z-10">
+        <header className="flex items-center justify-between mb-10 mt-4 relative">
+          <div className="relative z-10">
             <h1 className={`text-4xl md:text-6xl font-black uppercase tracking-tighter ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Dominate<br />Your Habits</h1>
             <p className={`text-sm md:text-base font-bold uppercase tracking-widest mt-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>No Excuses. Track Progress.</p>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Discipline Background Image */}
+          {darkMode && (
+            <div 
+              className="hidden sm:block absolute right-24 md:right-48 lg:right-64 top-[-40px] md:top-[-60px] pointer-events-none z-0 opacity-40 md:opacity-60 transition-opacity duration-500 select-none"
+              style={{ 
+                maskImage: 'radial-gradient(50% 50% at 50% 50%, black 50%, transparent 100%)',
+                WebkitMaskImage: 'radial-gradient(50% 50% at 50% 50%, black 50%, transparent 100%)'
+              }}
+            >
+               <img 
+                 src="/lee.jpg" 
+                 alt="Discipline" 
+                 className="h-[200px] md:h-[300px] object-contain transition-all duration-700 mix-blend-screen" 
+                 style={{ filter: 'contrast(2) grayscale(1)' }}
+               />
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 relative z-10">
             <button onClick={toggleDarkMode} title="Toggle Dark Mode" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-100 hover:border-zinc-500' : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-400'} shadow-sm`}>
               {darkMode ? <Sun size={24} /> : <Moon size={24} />}
             </button>
