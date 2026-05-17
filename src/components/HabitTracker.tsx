@@ -1,6 +1,6 @@
 // Trigger Vercel deployment
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key } from 'lucide-react';
+import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key, GripVertical } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
@@ -22,6 +22,8 @@ export default function HabitTracker({ session }: { session: Session }) {
   const [showYearly, setShowYearly] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [darkMode, setDarkMode] = useState(false);
+  const [draggedHabitId, setDraggedHabitId] = useState<number | null>(null);
+  const [dragOverHabitId, setDragOverHabitId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -87,7 +89,54 @@ export default function HabitTracker({ session }: { session: Session }) {
     saveData(updated, completions);
   };
 
+  const handleDragStart = (e: React.DragEvent, habit: Habit) => {
+    setDraggedHabitId(habit.id);
+    e.dataTransfer.setData('text/plain', habit.id.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    
+    const dragEl = document.createElement('div');
+    dragEl.textContent = habit.name;
+    dragEl.style.position = 'absolute';
+    dragEl.style.top = '-1000px';
+    dragEl.style.background = darkMode ? '#18181b' : '#ffffff';
+    dragEl.style.color = darkMode ? '#ffffff' : '#000000';
+    dragEl.style.padding = '12px 24px';
+    dragEl.style.borderRadius = '8px';
+    dragEl.style.fontWeight = '900';
+    dragEl.style.fontFamily = 'sans-serif';
+    dragEl.style.border = `2px solid ${darkMode ? '#3f3f46' : '#e4e4e7'}`;
+    dragEl.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.5)';
+    dragEl.style.zIndex = '9999';
+    document.body.appendChild(dragEl);
+    
+    e.dataTransfer.setDragImage(dragEl, 20, 20);
+    setTimeout(() => { document.body.removeChild(dragEl); }, 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    setDragOverHabitId(targetId);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    setDragOverHabitId(null);
+    if (draggedHabitId === null || draggedHabitId === targetId) return;
+
+    const newHabits = [...habits];
+    const draggedIndex = newHabits.findIndex(h => h.id === draggedHabitId);
+    const targetIndex = newHabits.findIndex(h => h.id === targetId);
+
+    const [draggedItem] = newHabits.splice(draggedIndex, 1);
+    newHabits.splice(targetIndex, 0, draggedItem);
+
+    setHabits(newHabits);
+    saveData(newHabits, completions);
+    setDraggedHabitId(null);
+  };
+
   const deleteHabit = (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this habit?")) return;
     const updated = habits.filter(h => h.id !== id);
     const newCompletions: Completions = { ...completions };
     Object.keys(newCompletions).forEach(key => {
@@ -110,7 +159,12 @@ export default function HabitTracker({ session }: { session: Session }) {
     saveData(habits, updated);
   };
 
-  const getDateString = (date: Date) => date.toISOString().split('T')[0];
+  const getDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const getHabitStats = (habitId: number, targetDate = currentDate) => {
     const year = targetDate.getFullYear();
@@ -383,9 +437,24 @@ export default function HabitTracker({ session }: { session: Session }) {
             </div>
 
             {habits.map(habit => (
-              <div key={habit.id} className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl p-4 shadow-sm`}>
+              <div 
+                key={habit.id} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, habit)}
+                onDragOver={(e) => handleDragOver(e, habit.id)}
+                onDragLeave={() => setDragOverHabitId(null)}
+                onDrop={(e) => handleDrop(e, habit.id)}
+                onDragEnd={() => { setDraggedHabitId(null); setDragOverHabitId(null); }}
+                className={`relative ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl p-4 shadow-sm transition-transform duration-200 ${draggedHabitId === habit.id ? 'scale-[0.98] ring-2 ring-zinc-500' : ''}`}
+              >
+                {dragOverHabitId === habit.id && draggedHabitId !== habit.id && (
+                  <div className="absolute -top-2 left-0 w-full h-1 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)] z-10" />
+                )}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                    <div className="cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 p-1 -ml-1">
+                      <GripVertical size={20} />
+                    </div>
                     <span className={`text-lg font-black tracking-tight uppercase ${darkMode ? 'text-zinc-100' : 'text-zinc-900'}`}>{habit.name}</span>
                     <span className={`text-[10px] w-fit font-bold px-2 py-1 rounded-md uppercase tracking-widest ${darkMode ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}>🔥 {getHabitStats(habit.id).streak} Day Streak</span>
                   </div>
@@ -423,8 +492,31 @@ export default function HabitTracker({ session }: { session: Session }) {
 
   const stats = habits.map(h => ({ ...h, ...getHabitStats(h.id) }));
   const weeklyData = getWeeklyStats();
-  const monthlyData = getMonthlyStats();
-  const yearlyData = getYearlyStatsData();
+  
+  const getGlobalStats = () => {
+    let totalCompletions = Object.keys(completions).length;
+    let bestStreak = 0;
+    stats.forEach(s => {
+      if (s.streak > bestStreak) bestStreak = s.streak;
+    });
+    
+    let last30Completions = 0;
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = getDateString(d);
+      habits.forEach(h => {
+        if (completions[`${h.id}-${dateStr}`]) last30Completions++;
+      });
+    }
+    const last30Possible = habits.length * 30;
+    const last30Rate = last30Possible === 0 ? 0 : Math.round((last30Completions / last30Possible) * 100);
+
+    return { totalCompletions, bestStreak, last30Rate, activeHabits: habits.length };
+  };
+  
+  const globalStats = getGlobalStats();
 
   const chartColor = darkMode ? '#f4f4f5' : '#18181b';
 
@@ -499,91 +591,141 @@ export default function HabitTracker({ session }: { session: Session }) {
 
             {view === 'analytics' && (
               <div className="space-y-6">
+                {/* Global Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {stats.map(stat => (
-                    <div key={stat.id} className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl shadow-sm p-5`}>
-                      <h3 className={`text-sm font-black uppercase tracking-tight mb-4 truncate ${darkMode ? 'text-zinc-300' : 'text-zinc-800'}`}>{stat.name}</h3>
-                      <div className="flex justify-between items-end mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Success Rate</span>
-                        <span className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{stat.percentage}%</span>
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Current Streak</span>
-                        <span className={`text-xl font-black ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{stat.streak}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl shadow-sm p-6`}>
-                  <h3 className={`text-lg font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Last 7 Days Overview</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={weeklyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
-                      <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
-                      <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip
-                        cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
-                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey="completed" fill={chartColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl shadow-sm p-6`}>
-                  <h3 className={`text-lg font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Monthly Progress (Completions per Day)</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
-                      <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
-                      <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip
-                        cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
-                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey="completed" fill={chartColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl shadow-sm p-6`}>
-                  <h3 className={`text-lg font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Yearly Overview (% Completion per Month)</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={yearlyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
-                      <XAxis dataKey="month" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
-                      <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip
-                        cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
-                        contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey="completion" fill={chartColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {habits.map(habit => (
-                  <div key={habit.id} className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-xl shadow-sm p-6`}>
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className={`text-lg font-black uppercase tracking-tight ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{habit.name}</h3>
-                      <button onClick={() => deleteHabit(habit.id)} className={`${darkMode ? 'text-zinc-600 hover:text-red-500' : 'text-zinc-400 hover:text-red-500'} transition`}>
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <LineChart data={getChartData(habit.id)}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
-                        <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
-                        <YAxis domain={[0, 1]} stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} ticks={[0, 1]} tickFormatter={(val) => val === 1 ? 'YES' : 'NO'} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '8px', fontWeight: 'bold' }}
-                        />
-                        <Line type="stepAfter" dataKey="completed" stroke={chartColor} strokeWidth={3} dot={{ fill: chartColor, r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Active Habits</span>
+                    <span className={`text-5xl font-black ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{globalStats.activeHabits}</span>
                   </div>
-                ))}
+                  <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">30-Day Success</span>
+                    <span className={`text-5xl font-black text-blue-500`}>{globalStats.last30Rate}%</span>
+                  </div>
+                  <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Best Streak</span>
+                    <span className={`text-5xl font-black text-orange-500`}>🔥 {globalStats.bestStreak}</span>
+                  </div>
+                  <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Total Logged</span>
+                    <span className={`text-5xl font-black text-emerald-500`}>{globalStats.totalCompletions}</span>
+                  </div>
+                </div>
+
+                {/* Heatmap Section */}
+                <div className={`${darkMode ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8 overflow-x-auto relative overflow-hidden`}>
+                  <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none ${darkMode ? 'bg-emerald-500' : 'bg-emerald-300'} -translate-y-1/2 translate-x-1/3`}></div>
+                  <h3 className={`text-xl font-black uppercase tracking-tight mb-8 relative z-10 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Consistency Heatmap</h3>
+                  <div className="flex min-w-max gap-1 relative z-10">
+                    <div className="flex flex-col gap-1 pr-2 pt-5 text-[10px] font-bold text-zinc-400 uppercase">
+                      <span className="h-3"></span>
+                      <span className="h-3 leading-3">Mon</span>
+                      <span className="h-3"></span>
+                      <span className="h-3 leading-3">Wed</span>
+                      <span className="h-3"></span>
+                      <span className="h-3 leading-3">Fri</span>
+                      <span className="h-3"></span>
+                    </div>
+                    {(() => {
+                      const today = new Date();
+                      const startDate = new Date(today);
+                      startDate.setDate(today.getDate() - 364); 
+                      const firstDay = new Date(startDate);
+                      firstDay.setDate(startDate.getDate() - startDate.getDay());
+
+                      const weeks = [];
+                      let current = new Date(firstDay);
+                      while (current <= today || current.getDay() !== 0) {
+                        if (current.getDay() === 0) weeks.push([]);
+                        if (weeks.length === 0) weeks.push([]);
+                        weeks[weeks.length - 1].push(new Date(current));
+                        current.setDate(current.getDate() + 1);
+                      }
+
+                      return weeks.map((week, wIdx) => (
+                        <div key={wIdx} className="flex flex-col gap-1">
+                          {wIdx % 4 === 0 ? (
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase h-4 mb-1">
+                              {week[0] && week[0].getDate() <= 7 ? week[0].toLocaleDateString('en-US', { month: 'short' }) : ''}
+                            </span>
+                          ) : (
+                            <span className="h-4 mb-1"></span>
+                          )}
+                          {week.map((day, dIdx) => {
+                            const dateStr = getDateString(day);
+                            let completedCount = 0;
+                            habits.forEach(h => {
+                              if (completions[`${h.id}-${dateStr}`]) completedCount++;
+                            });
+                            
+                            const maxPossible = habits.length;
+                            let intensityClass = darkMode ? 'bg-zinc-800' : 'bg-zinc-100';
+                            if (maxPossible > 0 && completedCount > 0) {
+                              const ratio = completedCount / maxPossible;
+                              if (ratio <= 0.25) intensityClass = darkMode ? 'bg-emerald-900' : 'bg-emerald-200';
+                              else if (ratio <= 0.5) intensityClass = darkMode ? 'bg-emerald-700' : 'bg-emerald-400';
+                              else if (ratio <= 0.75) intensityClass = darkMode ? 'bg-emerald-600' : 'bg-emerald-500';
+                              else intensityClass = darkMode ? 'bg-emerald-500' : 'bg-emerald-600';
+                            }
+                            
+                            if (day > today) intensityClass = darkMode ? 'bg-zinc-900/30' : 'bg-zinc-50';
+
+                            return (
+                              <div
+                                key={dIdx}
+                                title={`${completedCount} habits completed on ${dateStr}`}
+                                className={`w-3 h-3 rounded-sm transition-colors hover:ring-2 ring-zinc-400 ${intensityClass}`}
+                              />
+                            );
+                          })}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Bar Chart */}
+                  <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8 flex flex-col`}>
+                    <h3 className={`text-lg font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Last 7 Days Overview</h3>
+                    <div className="flex-1 min-h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weeklyData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#27272a' : '#e4e4e7'} vertical={false} />
+                          <XAxis dataKey="date" stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
+                          <YAxis stroke={darkMode ? '#71717a' : '#a1a1aa'} style={{ fontSize: '12px', fontWeight: 'bold' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip
+                            cursor={{ fill: darkMode ? '#27272a' : '#f4f4f5' }}
+                            contentStyle={{ backgroundColor: darkMode ? '#18181b' : '#fff', borderColor: darkMode ? '#3f3f46' : '#e4e4e7', borderRadius: '12px', fontWeight: 'bold', padding: '12px' }}
+                          />
+                          <Bar dataKey="completed" fill={chartColor} radius={[6, 6, 0, 0]} maxBarSize={60} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Habit Breakdown */}
+                  <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8 flex flex-col`}>
+                    <h3 className={`text-lg font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Habit Breakdown</h3>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-5">
+                      {stats.sort((a,b) => b.percentage - a.percentage).map(stat => (
+                        <div key={stat.id} className="flex flex-col gap-2">
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm font-black uppercase tracking-wider ${darkMode ? 'text-zinc-100' : 'text-zinc-900'}`}>{stat.name}</span>
+                            <span className={`text-xs font-bold ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{stat.percentage}% / 🔥 {stat.streak} streak</span>
+                          </div>
+                          <div className={`w-full ${darkMode ? 'bg-zinc-800' : 'bg-zinc-100'} rounded-full h-2 overflow-hidden`}>
+                            <div className="bg-blue-500 h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${stat.percentage}%` }}></div>
+                          </div>
+                        </div>
+                      ))}
+                      {stats.length === 0 && (
+                        <div className="text-sm font-bold text-zinc-500 uppercase text-center mt-10">No habits added yet.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
           </>
