@@ -107,7 +107,7 @@ function App() {
               type="submit" 
               className="w-full bg-white text-black font-black uppercase tracking-widest py-4 rounded-xl hover:bg-zinc-200 transition-colors transform active:scale-95 mt-4"
             >
-              {isSignUp ? 'Create Account' : 'Enter Tracker'}
+              {isSignUp ? 'Create Account' : 'Enter Habitsu'}
             </button>
 
             {!isSignUp && (
