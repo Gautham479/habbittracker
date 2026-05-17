@@ -24,6 +24,8 @@ export default function HabitTracker({ session }: { session: Session }) {
   const [darkMode, setDarkMode] = useState(false);
   const [draggedHabitId, setDraggedHabitId] = useState<number | null>(null);
   const [dragOverHabitId, setDragOverHabitId] = useState<number | null>(null);
+  const [currentInsightIdx, setCurrentInsightIdx] = useState(0);
+  const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     const loadData = async () => {
@@ -501,19 +503,113 @@ export default function HabitTracker({ session }: { session: Session }) {
     });
     
     let last30Completions = 0;
+    let thisWeekCompletions = 0;
+    let lastWeekCompletions = 0;
+    let weekdayCompletions = 0;
+    let weekendCompletions = 0;
+
     const today = new Date();
     for (let i = 0; i < 30; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = getDateString(d);
+      
+      let dayCompletions = 0;
       habits.forEach(h => {
-        if (completions[`${h.id}-${dateStr}`]) last30Completions++;
+        if (completions[`${h.id}-${dateStr}`]) dayCompletions++;
       });
+      
+      last30Completions += dayCompletions;
+      
+      if (i < 7) thisWeekCompletions += dayCompletions;
+      else if (i < 14) lastWeekCompletions += dayCompletions;
+      
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) weekendCompletions += dayCompletions;
+      else weekdayCompletions += dayCompletions;
     }
-    const last30Possible = habits.length * 30;
+    
+    const activeCount = habits.length;
+    const last30Possible = activeCount * 30;
     const last30Rate = last30Possible === 0 ? 0 : Math.round((last30Completions / last30Possible) * 100);
 
-    return { totalCompletions, bestStreak, last30Rate, activeHabits: habits.length };
+    const thisWeekRate = activeCount === 0 ? 0 : Math.round((thisWeekCompletions / (activeCount * 7)) * 100);
+    const lastWeekRate = activeCount === 0 ? 0 : Math.round((lastWeekCompletions / (activeCount * 7)) * 100);
+    const weekImprovement = thisWeekRate - lastWeekRate;
+
+    let bestHabit = { name: 'N/A', percentage: 0 };
+    let worstHabit = { name: 'N/A', percentage: 100 };
+    
+    if (stats.length > 0) {
+      bestHabit = stats.reduce((prev, current) => (prev.percentage > current.percentage) ? prev : current, stats[0]);
+      worstHabit = stats.reduce((prev, current) => (prev.percentage < current.percentage) ? prev : current, stats[0]);
+    }
+
+    // Smart Insight Logic
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+    const dayOccurrences = [0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = getDateString(d);
+      
+      let dayComps = 0;
+      habits.forEach(h => {
+        if (completions[`${h.id}-${dateStr}`]) dayComps++;
+      });
+      
+      const dayOfWeek = d.getDay();
+      dayCounts[dayOfWeek] += dayComps;
+      dayOccurrences[dayOfWeek]++;
+    }
+
+    const dayAverages = dayCounts.map((count, i) => count / (dayOccurrences[i] || 1));
+    let bestDayIdx = 0;
+    let worstDayIdx = 0;
+    for (let i = 1; i < 7; i++) {
+      if (dayAverages[i] > dayAverages[bestDayIdx]) bestDayIdx = i;
+      if (dayAverages[i] < dayAverages[worstDayIdx]) worstDayIdx = i;
+    }
+
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let insights: string[] = [];
+    
+    if (totalCompletions === 0) {
+      insights.push("Start tracking to get insights.");
+    } else {
+      if (stats.some(s => s.streak >= 7)) {
+        const topStreak = stats.reduce((p, c) => p.streak > c.streak ? p : c);
+        insights.push(`🔥 Incredible ${topStreak.streak}-day streak on ${topStreak.name}!`);
+      }
+      
+      if (weekImprovement >= 15) {
+        insights.push(`📈 Huge improvement this week (+${weekImprovement}%).`);
+      } else if (weekImprovement <= -10) {
+        insights.push(`📉 Slight dip this week (${weekImprovement}%).`);
+      }
+
+      if (dayAverages[bestDayIdx] > 0) {
+        insights.push(`⭐ ${daysOfWeek[bestDayIdx]}s are your most productive days.`);
+      }
+      if (dayAverages[worstDayIdx] < dayAverages[bestDayIdx] * 0.5) {
+        insights.push(`⚠️ You tend to skip habits on ${daysOfWeek[worstDayIdx]}s.`);
+      }
+
+      if (insights.length === 0) {
+        insights.push("You're building solid consistency. Keep it up.");
+      }
+    }
+
+    return { 
+      totalCompletions, 
+      bestStreak, 
+      last30Rate, 
+      activeHabits: habits.length,
+      weekImprovement,
+      bestHabit: bestHabit.name,
+      worstHabit: worstHabit.name,
+      insights
+    };
   };
   
   const globalStats = getGlobalStats();
@@ -594,92 +690,146 @@ export default function HabitTracker({ session }: { session: Session }) {
                 {/* Global Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
-                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Active Habits</span>
-                    <span className={`text-5xl font-black ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{globalStats.activeHabits}</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Consistency Score</span>
+                    <span className={`text-4xl lg:text-5xl font-black ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{globalStats.last30Rate}%</span>
                   </div>
                   <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
-                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">30-Day Success</span>
-                    <span className={`text-5xl font-black text-blue-500`}>{globalStats.last30Rate}%</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Weekly Progress</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-4xl lg:text-5xl font-black ${globalStats.weekImprovement >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {globalStats.weekImprovement > 0 ? '+' : ''}{globalStats.weekImprovement}%
+                      </span>
+                    </div>
                   </div>
                   <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
-                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Best Streak</span>
-                    <span className={`text-5xl font-black text-orange-500`}>🔥 {globalStats.bestStreak}</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Best / Worst Habit</span>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <span className={`text-sm lg:text-base font-black truncate text-emerald-500`} title={globalStats.bestHabit}>↑ {globalStats.bestHabit}</span>
+                      <span className={`text-sm lg:text-base font-black truncate text-red-500`} title={globalStats.worstHabit}>↓ {globalStats.worstHabit}</span>
+                    </div>
                   </div>
                   <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]`}>
-                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Total Logged</span>
-                    <span className={`text-5xl font-black text-emerald-500`}>{globalStats.totalCompletions}</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Smart Insights</span>
+                      {globalStats.insights.length > 1 && (
+                        <div className="flex gap-1">
+                          <button onClick={() => setCurrentInsightIdx(p => (p > 0 ? p - 1 : globalStats.insights.length - 1))} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-zinc-100 text-zinc-600'}`}>
+                            <ChevronLeft size={14} />
+                          </button>
+                          <button onClick={() => setCurrentInsightIdx(p => (p < globalStats.insights.length - 1 ? p + 1 : 0))} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-zinc-100 text-zinc-600'}`}>
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col mt-2 flex-1 justify-center">
+                      <span className={`text-sm lg:text-base font-bold leading-snug ${darkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                        {globalStats.insights[currentInsightIdx] || globalStats.insights[0]}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Heatmap Section */}
-                <div className={`${darkMode ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8 overflow-x-auto relative overflow-hidden`}>
-                  <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none ${darkMode ? 'bg-emerald-500' : 'bg-emerald-300'} -translate-y-1/2 translate-x-1/3`}></div>
-                  <h3 className={`text-xl font-black uppercase tracking-tight mb-8 relative z-10 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Consistency Heatmap</h3>
-                  <div className="flex min-w-max gap-1 relative z-10">
-                    <div className="flex flex-col gap-1 pr-2 pt-5 text-[10px] font-bold text-zinc-400 uppercase">
-                      <span className="h-3"></span>
-                      <span className="h-3 leading-3">Mon</span>
-                      <span className="h-3"></span>
-                      <span className="h-3 leading-3">Wed</span>
-                      <span className="h-3"></span>
-                      <span className="h-3 leading-3">Fri</span>
-                      <span className="h-3"></span>
+                <div className={`${darkMode ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8 relative overflow-hidden`}>
+                  <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none ${darkMode ? 'bg-orange-500' : 'bg-orange-300'} -translate-y-1/2 translate-x-1/3`}></div>
+                  <div className="flex justify-between items-end mb-6 relative z-10">
+                    <h3 className={`text-xl font-black uppercase tracking-tight ${darkMode ? 'text-white' : 'text-zinc-900'}`}>
+                      ACTIVITY HEATMAP {heatmapYear}
+                    </h3>
+                  </div>
+                  <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative z-10 pb-4">
+                    <div className="flex min-w-max gap-4 lg:gap-6">
+                      {Array.from({ length: 12 }).map((_, mIdx) => {
+                        const daysInMonth = new Date(heatmapYear, mIdx + 1, 0).getDate();
+                        const firstDay = new Date(heatmapYear, mIdx, 1).getDay();
+                        
+                        const weeks = [];
+                        let currentWeek = Array(7).fill(null);
+                        
+                        for (let i = 0; i < firstDay; i++) {
+                          currentWeek[i] = null;
+                        }
+                        
+                        let currentDay = 1;
+                        while (currentDay <= daysInMonth) {
+                          const dateObj = new Date(heatmapYear, mIdx, currentDay);
+                          const dayOfWeek = dateObj.getDay();
+                          currentWeek[dayOfWeek] = dateObj;
+                          
+                          if (dayOfWeek === 6 || currentDay === daysInMonth) {
+                            weeks.push([...currentWeek]);
+                            currentWeek = Array(7).fill(null);
+                          }
+                          currentDay++;
+                        }
+                        
+                        const monthName = new Date(heatmapYear, mIdx, 1).toLocaleDateString('en-US', { month: 'long' });
+
+                        return (
+                          <div key={mIdx} className="flex flex-col items-center">
+                            <div className="flex gap-[3px]">
+                              {weeks.map((week, wIdx) => (
+                                <div key={wIdx} className="flex flex-col gap-[3px]">
+                                  {week.map((date, dIdx) => {
+                                    if (!date) {
+                                      return <div key={dIdx} className="w-3 h-3 shrink-0 bg-transparent" />;
+                                    }
+                                    
+                                    const dateStr = getDateString(date);
+                                    let completedCount = 0;
+                                    habits.forEach(h => {
+                                      if (completions[`${h.id}-${dateStr}`]) completedCount++;
+                                    });
+                                    
+                                    const maxPossible = habits.length;
+                                    let intensityClass = darkMode ? 'bg-zinc-800' : 'bg-zinc-100';
+                                    let isFuture = date > new Date();
+                                    
+                                    if (maxPossible > 0 && completedCount > 0 && !isFuture) {
+                                      const ratio = completedCount / maxPossible;
+                                      if (ratio <= 0.25) intensityClass = darkMode ? 'bg-orange-900/40 text-orange-200' : 'bg-orange-200';
+                                      else if (ratio <= 0.5) intensityClass = darkMode ? 'bg-orange-700/60 text-orange-200' : 'bg-orange-300';
+                                      else if (ratio <= 0.75) intensityClass = darkMode ? 'bg-orange-500/80 text-white' : 'bg-orange-500';
+                                      else intensityClass = darkMode ? 'bg-orange-500 text-white' : 'bg-orange-600';
+                                    }
+
+                                    return (
+                                      <div
+                                        key={dIdx}
+                                        title={isFuture ? undefined : `${completedCount} habits completed on ${dateStr}`}
+                                        className={`w-3 h-3 shrink-0 rounded-[3px] transition-opacity cursor-pointer ${isFuture ? 'opacity-30' : 'hover:opacity-75'} ${intensityClass}`}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              ))}
+                            </div>
+                            <span className="text-[11px] font-bold text-zinc-500 mt-2">{monthName}</span>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {(() => {
-                      const today = new Date();
-                      const startDate = new Date(today);
-                      startDate.setDate(today.getDate() - 364); 
-                      const firstDay = new Date(startDate);
-                      firstDay.setDate(startDate.getDate() - startDate.getDay());
-
-                      const weeks = [];
-                      let current = new Date(firstDay);
-                      while (current <= today || current.getDay() !== 0) {
-                        if (current.getDay() === 0) weeks.push([]);
-                        if (weeks.length === 0) weeks.push([]);
-                        weeks[weeks.length - 1].push(new Date(current));
-                        current.setDate(current.getDate() + 1);
-                      }
-
-                      return weeks.map((week, wIdx) => (
-                        <div key={wIdx} className="flex flex-col gap-1">
-                          {wIdx % 4 === 0 ? (
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase h-4 mb-1">
-                              {week[0] && week[0].getDate() <= 7 ? week[0].toLocaleDateString('en-US', { month: 'short' }) : ''}
-                            </span>
-                          ) : (
-                            <span className="h-4 mb-1"></span>
-                          )}
-                          {week.map((day, dIdx) => {
-                            const dateStr = getDateString(day);
-                            let completedCount = 0;
-                            habits.forEach(h => {
-                              if (completions[`${h.id}-${dateStr}`]) completedCount++;
-                            });
-                            
-                            const maxPossible = habits.length;
-                            let intensityClass = darkMode ? 'bg-zinc-800' : 'bg-zinc-100';
-                            if (maxPossible > 0 && completedCount > 0) {
-                              const ratio = completedCount / maxPossible;
-                              if (ratio <= 0.25) intensityClass = darkMode ? 'bg-emerald-900' : 'bg-emerald-200';
-                              else if (ratio <= 0.5) intensityClass = darkMode ? 'bg-emerald-700' : 'bg-emerald-400';
-                              else if (ratio <= 0.75) intensityClass = darkMode ? 'bg-emerald-600' : 'bg-emerald-500';
-                              else intensityClass = darkMode ? 'bg-emerald-500' : 'bg-emerald-600';
-                            }
-                            
-                            if (day > today) intensityClass = darkMode ? 'bg-zinc-900/30' : 'bg-zinc-50';
-
-                            return (
-                              <div
-                                key={dIdx}
-                                title={`${completedCount} habits completed on ${dateStr}`}
-                                className={`w-3 h-3 rounded-sm transition-colors hover:ring-2 ring-zinc-400 ${intensityClass}`}
-                              />
-                            );
-                          })}
-                        </div>
-                      ));
-                    })()}
+                  </div>
+                  <div className="flex justify-between items-center mt-4 relative z-10">
+                    <div className="flex gap-2">
+                      <button onClick={() => setHeatmapYear(y => y - 1)} className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1 ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'}`}>
+                        <ChevronLeft size={14} /> Previous
+                      </button>
+                      <button onClick={() => setHeatmapYear(y => y + 1)} disabled={heatmapYear === new Date().getFullYear()} className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1 ${heatmapYear === new Date().getFullYear() ? 'opacity-50 cursor-not-allowed ' + (darkMode ? 'bg-zinc-900 text-zinc-600' : 'bg-zinc-50 text-zinc-400') : darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'}`}>
+                        Next <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1">Consistency</span>
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase">
+                        <div className={`w-3 h-3 shrink-0 rounded-[3px] ${darkMode ? 'bg-zinc-800' : 'bg-zinc-100'}`}></div>
+                        <div className={`w-3 h-3 shrink-0 rounded-[3px] ${darkMode ? 'bg-orange-900/40' : 'bg-orange-200'}`}></div>
+                        <div className={`w-3 h-3 shrink-0 rounded-[3px] ${darkMode ? 'bg-orange-700/60' : 'bg-orange-300'}`}></div>
+                        <div className={`w-3 h-3 shrink-0 rounded-[3px] ${darkMode ? 'bg-orange-500/80' : 'bg-orange-500'}`}></div>
+                        <div className={`w-3 h-3 shrink-0 rounded-[3px] ${darkMode ? 'bg-orange-500' : 'bg-orange-600'}`}></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
