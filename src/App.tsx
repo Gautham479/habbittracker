@@ -7,10 +7,13 @@ import { Eye, EyeOff } from 'lucide-react';
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,13 +35,33 @@ function App() {
     e.preventDefault();
     setError('');
     
+    if (showOtpInput) {
+      const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' });
+      if (error) {
+        setError(error.message);
+      } else {
+        setError('Success! You are now verified.');
+        setShowOtpInput(false);
+      }
+      return;
+    }
+
     if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            name: name
+          }
+        }
+      });
       if (error) {
         setError(error.message);
       } else {
         if (!data.session) {
-          setError('Success! Please check your email for the confirmation link.');
+          setError('Please enter the verification code sent to your email.');
+          setShowOtpInput(true);
         }
       }
     } else {
@@ -69,48 +92,77 @@ function App() {
           </div>
           
           <form onSubmit={handleAuth} className="space-y-6">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Email</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold"
-                placeholder="enter@email.com"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Password</label>
-              <div className="relative">
+            {!showOtpInput ? (
+              <>
+                {isSignUp && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Name</label>
+                    <input 
+                      type="text" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold"
+                      placeholder="Your Name"
+                      required
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Email</label>
+                  <input 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold"
+                    placeholder="enter@email.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Password</label>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold pr-12"
+                      placeholder="••••••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Verification Code</label>
                 <input 
-                  type={showPassword ? "text" : "password"} 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold pr-12"
-                  placeholder="••••••••••••"
+                  type="text" 
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="w-full px-4 py-3 bg-black border border-zinc-700 text-white rounded-xl focus:outline-none focus:border-zinc-500 transition-colors font-bold tracking-widest text-center text-xl"
+                  placeholder="000000"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
               </div>
-            </div>
+            )}
             
-            {error && <p className={`text-xs font-bold tracking-wider text-center ${error.includes('Success') ? 'text-green-500' : 'text-red-500 uppercase'}`}>{error}</p>}
+            {error && <p className={`text-xs font-bold tracking-wider text-center ${error.includes('Success') || error.includes('code sent') ? 'text-green-500' : 'text-red-500 uppercase'}`}>{error}</p>}
             
             <button 
               type="submit" 
               className="w-full bg-white text-black font-black uppercase tracking-widest py-4 rounded-xl hover:bg-zinc-200 transition-colors transform active:scale-95 mt-4"
             >
-              {isSignUp ? 'Create Account' : 'Enter Habitsu'}
+              {showOtpInput ? 'Verify Code' : (isSignUp ? 'Create Account' : 'Enter Habitsu')}
             </button>
 
-            {!isSignUp && (
+            {!showOtpInput && !isSignUp && (
               <div className="text-center mt-2">
                 <button 
                   type="button"
@@ -132,12 +184,27 @@ function App() {
           </form>
 
           <div className="mt-6 text-center">
-            <button 
-              onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-              className="text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-white transition-colors"
-            >
-              {isSignUp ? 'Already have an account? Login' : 'Need an account? Register'}
-            </button>
+            {showOtpInput ? (
+              <button 
+                onClick={() => { setShowOtpInput(false); setError(''); }}
+                className="text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-white transition-colors"
+              >
+                Back to Registration
+              </button>
+            ) : (
+              <button 
+                onClick={() => { 
+                  setIsSignUp(!isSignUp); 
+                  setError(''); 
+                  setName(''); 
+                  setEmail(''); 
+                  setPassword(''); 
+                }}
+                className="text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-white transition-colors"
+              >
+                {isSignUp ? 'Already have an account? Login' : 'Need an account? Register'}
+              </button>
+            )}
           </div>
         </div>
       </div>

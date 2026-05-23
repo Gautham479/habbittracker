@@ -1,6 +1,6 @@
 // Trigger Vercel deployment
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, Key, GripVertical, Pencil, Check, X } from 'lucide-react';
+import { Plus, Trash2, Calendar, BarChart3, Moon, Sun, ChevronLeft, ChevronRight, LogOut, GripVertical, Pencil, Check, X, User } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
@@ -28,6 +28,20 @@ export default function HabitTracker({ session }: { session: Session }) {
   const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
   const [editingHabitId, setEditingHabitId] = useState<number | null>(null);
   const [editingHabitName, setEditingHabitName] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [nameInput, setNameInput] = useState(session.user.user_metadata?.name || '');
+  const [nameError, setNameError] = useState('');
+  const [nameSuccess, setNameSuccess] = useState('');
+
+  useEffect(() => {
+    if (session.user.user_metadata?.name) {
+      setNameInput(session.user.user_metadata.name);
+    }
+  }, [session]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -69,19 +83,48 @@ export default function HabitTracker({ session }: { session: Session }) {
     saveData(habits, completions, newMode);
   };
 
-  const handleChangePassword = async () => {
-    const newPassword = prompt("Enter your new password (minimum 6 characters):");
-    if (newPassword) {
-      if (newPassword.length < 6) {
-        alert("Password must be at least 6 characters long.");
-        return;
-      }
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        alert("Error changing password: " + error.message);
-      } else {
-        alert("Password successfully updated!");
-      }
+  const handleUpdateName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNameError('');
+    setNameSuccess('');
+    
+    if (!nameInput.trim()) {
+      setNameError("Name cannot be empty.");
+      return;
+    }
+    
+    const { error } = await supabase.auth.updateUser({
+      data: { name: nameInput.trim() }
+    });
+    
+    if (error) {
+      setNameError("Error updating name: " + error.message);
+    } else {
+      setNameSuccess("Name updated successfully!");
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+    
+    if (newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters long.");
+      return;
+    }
+    
+    const { error } = await supabase.auth.updateUser({ 
+      password: newPassword,
+      current_password: currentPassword
+    });
+    
+    if (error) {
+      setPasswordError("Error updating password: " + error.message);
+    } else {
+      setPasswordSuccess("Password updated successfully!");
+      setCurrentPassword('');
+      setNewPassword('');
     }
   };
 
@@ -251,6 +294,9 @@ export default function HabitTracker({ session }: { session: Session }) {
     const prev = new Date(currentDate);
     if (!showYearly) prev.setDate(prev.getDate() - 7);
     else prev.setFullYear(prev.getFullYear() - 1);
+    
+    if (prev.getFullYear() < 2026) return;
+    
     setCurrentDate(prev);
   };
 
@@ -606,6 +652,93 @@ export default function HabitTracker({ session }: { session: Session }) {
     };
   };
   
+  const renderSettingsView = () => {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Profile Card */}
+        <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8`}>
+          <h3 className={`text-xl font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Profile Settings</h3>
+          
+          <form onSubmit={handleUpdateName} className="space-y-6">
+            <div>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>Email Address</label>
+              <input 
+                type="email" 
+                value={session.user.email || ''} 
+                disabled 
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all opacity-50 cursor-not-allowed ${darkMode ? 'bg-black border-zinc-800 text-zinc-400' : 'bg-zinc-100 border-zinc-200 text-zinc-500'}`}
+              />
+              <span className={`text-[10px] font-semibold mt-1 block ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Email cannot be changed</span>
+            </div>
+
+            <div>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>Name</label>
+              <input 
+                type="text" 
+                value={nameInput} 
+                onChange={e => setNameInput(e.target.value)} 
+                placeholder="Enter your name"
+                required
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all ${darkMode ? 'bg-black border-zinc-700 text-white focus:border-zinc-500' : 'bg-zinc-50 border-zinc-200 focus:border-zinc-900'}`}
+              />
+            </div>
+
+            {nameError && <p className="text-red-500 text-xs font-bold uppercase tracking-wider">{nameError}</p>}
+            {nameSuccess && <p className="text-emerald-500 text-xs font-bold uppercase tracking-wider">{nameSuccess}</p>}
+
+            <button 
+              type="submit" 
+              className={`w-full py-4 rounded-xl text-sm font-black uppercase tracking-widest transition-transform active:scale-95 ${darkMode ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'}`}
+            >
+              Update Profile
+            </button>
+          </form>
+        </div>
+
+        {/* Password Card */}
+        <div className={`${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-3xl shadow-lg p-6 md:p-8`}>
+          <h3 className={`text-xl font-black uppercase tracking-tight mb-6 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Change Password</h3>
+          
+          <form onSubmit={handleUpdatePassword} className="space-y-6">
+            <div>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>Current Password</label>
+              <input 
+                type="password" 
+                value={currentPassword} 
+                onChange={e => setCurrentPassword(e.target.value)} 
+                placeholder="Enter current password"
+                required
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all ${darkMode ? 'bg-black border-zinc-700 text-white focus:border-zinc-500' : 'bg-zinc-50 border-zinc-200 focus:border-zinc-900'}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>New Password</label>
+              <input 
+                type="password" 
+                value={newPassword} 
+                onChange={e => setNewPassword(e.target.value)} 
+                placeholder="Enter new password"
+                required
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all ${darkMode ? 'bg-black border-zinc-700 text-white focus:border-zinc-500' : 'bg-zinc-50 border-zinc-200 focus:border-zinc-900'}`}
+              />
+            </div>
+
+            {passwordError && <p className="text-red-500 text-xs font-bold uppercase tracking-wider">{passwordError}</p>}
+            {passwordSuccess && <p className="text-emerald-500 text-xs font-bold uppercase tracking-wider">{passwordSuccess}</p>}
+
+            <button 
+              type="submit" 
+              className={`w-full py-4 rounded-xl text-sm font-black uppercase tracking-widest transition-transform active:scale-95 ${darkMode ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'}`}
+            >
+              Update Password
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   const globalStats = getGlobalStats();
 
   const chartColor = darkMode ? '#f4f4f5' : '#18181b';
@@ -678,9 +811,36 @@ export default function HabitTracker({ session }: { session: Session }) {
             <button onClick={toggleDarkMode} title="Toggle Dark Mode" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-100 hover:border-zinc-500' : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-400'} shadow-sm`}>
               {darkMode ? <Sun size={24} /> : <Moon size={24} />}
             </button>
-            <button onClick={handleChangePassword} title="Change Password" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-blue-400 hover:border-blue-500 hover:text-blue-500' : 'bg-white border-zinc-200 text-blue-500 hover:border-blue-500'} shadow-sm`}>
-              <Key size={24} />
-            </button>
+
+            {/* User Profile Dropdown - click only */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserDropdown(!showUserDropdown)} 
+                title="User Profile" 
+                className={`p-3 rounded-full border-2 transition-all active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-emerald-400' : 'bg-white border-zinc-200 text-emerald-500'} shadow-sm`}
+              >
+                <User size={24} />
+              </button>
+              
+              {showUserDropdown && (
+                <>
+                  {/* Backdrop to close on outside click */}
+                  <div className="fixed inset-0 z-40" onClick={() => setShowUserDropdown(false)} />
+                  <div className={`absolute right-0 mt-2 w-64 p-4 rounded-xl border shadow-xl z-50 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-white' : 'bg-white border-zinc-200 text-black'}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Logged In As</p>
+                    <p className="text-sm font-black truncate mb-0.5">{session.user.user_metadata?.name || session.user.user_metadata?.full_name || 'User'}</p>
+                    <p className={`text-xs font-bold truncate mb-3 ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{session.user.email}</p>
+                    <button 
+                      onClick={() => { setView('settings'); setShowUserDropdown(false); }}
+                      className={`w-full py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${darkMode ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-zinc-100 text-black hover:bg-zinc-200'}`}
+                    >
+                      Manage Account
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button onClick={() => supabase.auth.signOut()} title="Logout" className={`p-3 rounded-full border-2 transition-all transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-700 text-red-400 hover:border-red-500 hover:text-red-500' : 'bg-white border-zinc-200 text-red-500 hover:border-red-500'} shadow-sm`}>
               <LogOut size={24} />
             </button>
@@ -863,7 +1023,7 @@ export default function HabitTracker({ session }: { session: Session }) {
                   </div>
                   <div className="flex justify-between items-center mt-4 relative z-10">
                     <div className="flex gap-2">
-                      <button onClick={() => setHeatmapYear(y => y - 1)} className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1 ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'}`}>
+                      <button onClick={() => setHeatmapYear(y => y - 1)} disabled={heatmapYear <= 2026} className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1 ${heatmapYear <= 2026 ? 'opacity-50 cursor-not-allowed ' + (darkMode ? 'bg-zinc-900 text-zinc-600' : 'bg-zinc-50 text-zinc-400') : darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'}`}>
                         <ChevronLeft size={14} /> Previous
                       </button>
                       <button onClick={() => setHeatmapYear(y => y + 1)} disabled={heatmapYear === new Date().getFullYear()} className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1 ${heatmapYear === new Date().getFullYear() ? 'opacity-50 cursor-not-allowed ' + (darkMode ? 'bg-zinc-900 text-zinc-600' : 'bg-zinc-50 text-zinc-400') : darkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'}`}>
@@ -928,6 +1088,8 @@ export default function HabitTracker({ session }: { session: Session }) {
 
               </div>
             )}
+
+            {view === 'settings' && renderSettingsView()}
           </>
         )}
       </div>
